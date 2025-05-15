@@ -1,0 +1,186 @@
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>抽卡 - ChouKaShow</title>
+    <script src="https://cdn.jsdelivr.net/npm/animejs@3.2.1/lib/anime.min.js"></script>
+</head>
+<body>
+    <main>
+        <section class="lottery-interface">
+            <h1>抽卡界面</h1>
+            <div class="currency">
+                金币: <span id="gold">1000</span>
+            </div>
+            <button id="single-draw-button">单抽 (100 金币)</button>
+            <button id="multi-draw-button">十连抽 (1000 金币)</button>
+            <div id="result"></div>
+            <div id="results-container"></div>
+        </section>
+    </main>
+</body>
+</html>
+
+<style>
+/* 废土科技风格的 CSS */
+body {
+    font-family: monospace;
+    background-color: #222;
+    color: #eee;
+    margin: 0;
+    padding: 0;
+}
+
+main {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+    padding: 20px;
+}
+
+.lottery-interface {
+    text-align: center;
+}
+
+h1 {
+    font-size: 2em;
+    margin-bottom: 20px;
+}
+
+#single-draw-button, #multi-draw-button {
+    padding: 10px 20px;
+    background-color: #555;
+    color: #fff;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: background-color 0.3s;
+    margin: 0 10px;
+}
+
+#single-draw-button:hover, #multi-draw-button:hover {
+    background-color: #777;
+}
+
+#result {
+    margin-top: 20px;
+    font-size: 1.2em;
+}
+
+#results-container {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    margin-top: 20px;
+}
+
+.result-item {
+    width: 80px;
+    height: 120px; /* Increased height for card look */
+    margin: 5px;
+    background-color: #444;
+    color: #fff;
+    border: 1px solid #555;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-size: 1em; /* Adjusted font size */
+    border-radius: 10px; /* Rounded corners for card */
+    box-shadow: 2px 2px 5px rgba(0, 0, 0, 0.3); /* Card shadow */
+}
+
+.currency {
+    margin-bottom: 10px;
+}
+</style>
+
+<script>
+    document.addEventListener('DOMContentLoaded', () => {
+        const singleDrawButton = document.getElementById('single-draw-button');
+        const multiDrawButton = document.getElementById('multi-draw-button');
+        const resultDiv = document.getElementById('result');
+        const resultsContainer = document.getElementById('results-container');
+        const goldDisplay = document.getElementById('gold');
+        let gold = 1000;
+
+        const draw = () => {
+            const rarities = ['N', 'R', 'SR', 'SSR'];
+            const probabilities = [0.6, 0.25, 0.1, 0.05];
+            let random = Math.random();
+            let rarity;
+
+            for (let i = 0; i < probabilities.length; i++) {
+                if (random < probabilities[i]) {
+                    rarity = rarities[i];
+                    break;
+                }
+                random -= probabilities[i];
+            }
+
+            return rarity;
+        };
+
+        const updateGold = (cost) => {
+            gold -= cost;
+            goldDisplay.innerText = gold;
+        };
+
+        const createResultItem = (rarity) => {
+            const resultItem = document.createElement('div');
+            resultItem.classList.add('result-item');
+            resultItem.innerText = rarity;
+            return resultItem;
+        };
+
+        const animateDraw = (rarity) => {
+            resultDiv.innerText = `恭喜你抽到了 ${rarity}!`; // Display result immediately
+
+            // 创建卡片元素
+            const resultItem = createResultItem(rarity);
+            resultsContainer.appendChild(resultItem);
+
+            // 对卡片元素应用动画
+            anime({
+                targets: resultItem, // 动画目标是卡片元素
+                translateY: [-50, 0], // 从上方移入
+                opacity: [0, 1],
+                duration: 1000,
+                easing: 'easeOutQuad'
+            });
+        };
+
+        singleDrawButton.addEventListener('click', () => {
+            if (gold >= 100) {
+                updateGold(100);
+                const rarity = draw(); // Get the rarity before animation
+                animateDraw(rarity); // Pass the rarity to animateDraw
+            } else {
+                resultDiv.innerText = '金币不足!';
+            }
+        });
+        multiDrawButton.addEventListener('click', () => {
+            if (gold >= 1000) {
+                updateGold(1000);
+                resultDiv.innerText = '正在进行十连抽...';
+                resultsContainer.innerHTML = ''; // Clear previous results
+
+                let drawCount = 0;
+                const interval = setInterval(() => {
+                    const rarity = draw();
+                    const resultItem = createResultItem(rarity);
+                    resultItem.style.marginRight = '10px'; // Add space between items
+                    resultsContainer.appendChild(resultItem);
+                    drawCount++;
+
+                    if (drawCount === 10) {
+                        clearInterval(interval);
+                        resultDiv.innerText = '十连抽完成!';
+                    }
+                }, 500); // Adjust interval for animation speed
+            } else {
+                resultDiv.innerText = '金币不足!';
+            }
+        });
+    });
+</script> 

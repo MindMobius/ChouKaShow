@@ -1,0 +1,312 @@
+---
+// src/pages/show.astro
+import { onMount } from 'astro';
+---
+
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>选秀模式 - ChouKaShow</title>
+    <script src="https://cdn.jsdelivr.net/npm/animejs@3.2.1/lib/anime.min.js"></script>
+</head>
+<body>
+    <main>
+        <section class="show-interface">
+            <h1>选秀模式</h1>
+
+            <div class="currency">
+                金币: <span id="gold">1000</span> | 宝石: <span id="gems">500</span>
+            </div>
+
+            <div class="display-stage">
+                <h2>展示阶段</h2>
+                <div class="item-container">
+                    <div class="item" id="item1">Item 1</div>
+                    <div class="item" id="item2">Item 2</div>
+                    <div class="item" id="item3">Item 3</div>
+                </div>
+                <button id="refresh-button">刷新展示 (100 金币)</button>
+                <p id="guarantee-info"></p>
+            </div>
+
+            <div class="selection-stage">
+                <h2>选秀阶段</h2>
+                <div class="level-adjuster">
+                    <button id="decrease-level">-</button>
+                    <span>倍数: <span id="current-level">1</span></span>
+                    <button id="increase-level">+</button>
+                </div>
+                <button id="draw-button"></button>
+                <p id="result-message"></p>
+            </div>
+        </section>
+    </main>
+
+    <style>
+        /* Add your wasteland tech styles here */
+        body {
+            font-family: monospace;
+            background-color: #222;
+            color: #eee;
+            margin: 0;
+            padding: 0;
+        }
+
+        main {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .show-interface {
+            text-align: center;
+        }
+
+        h1 {
+            font-size: 2em;
+            margin-bottom: 20px;
+        }
+
+        .display-stage, .selection-stage {
+            margin-bottom: 30px;
+            padding: 20px;
+            border: 1px dashed #777;
+        }
+
+        .item-container {
+            display: flex;
+            justify-content: space-around;
+            margin-bottom: 20px;
+        }
+
+        .item {
+            width: 100px;
+            height: 100px;
+            background-color: #444;
+            color: #fff;
+            border: 1px solid #555;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 1.5em;
+        }
+
+        .item.drawn {
+            opacity: 0.5; /* Make drawn items semi-transparent */
+        }
+
+        #draw-button, #refresh-button, #decrease-level, #increase-level {
+            padding: 10px 20px;
+            background-color: #555;
+            color: #fff;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+            margin: 0 10px;
+        }
+
+        #draw-button:hover, #refresh-button:hover, #decrease-level:hover, #increase-level:hover {
+            background-color: #777;
+        }
+
+        .currency {
+            margin-bottom: 10px;
+        }
+
+        .level-adjuster {
+            margin-bottom: 10px;
+        }
+    </style>
+
+    <script>
+        let gold = 1000;
+        let gems = 500;
+        let items = [];
+        let srPity = 0;
+        let ssrPity = 0;
+        let stage = 'display'; // 'display', 'goldBet', 'gemBet', 'finished'
+        let betMultiple = 1;
+        let currentLevel = 1; // Current level of the selection stage
+
+        const rarities = ['N', 'R', 'SR', 'SSR'];
+        const probabilities = [0.6, 0.25, 0.1, 0.05];
+
+        const draw = (guaranteedRarity = null) => {
+            let rarity;
+            if (guaranteedRarity) {
+                rarity = guaranteedRarity;
+            } else {
+                let random = Math.random();
+                for (let i = 0; i < probabilities.length; i++) {
+                    if (random < probabilities[i]) {
+                        rarity = rarities[i];
+                        break;
+                    }
+                    random -= probabilities[i];
+                }
+            }
+            return rarity;
+        };
+
+        const generateDisplayItems = () => {
+            items = [];
+            let hasSR = false;
+            let hasSSR = false;
+
+            if (srPity >= 10) {
+                items.push('SR');
+                hasSR = true;
+                srPity = 0;
+            }
+
+            if (ssrPity >= 20) {
+                items.push('SSR');
+                hasSSR = true;
+                ssrPity = 0;
+            }
+
+            let itemCount = 3 * betMultiple;
+            while (items.length < itemCount) {
+                const rarity = draw();
+                items.push(rarity);
+                if (rarity === 'SR') hasSR = true;
+                if (rarity === 'SSR') hasSSR = true;
+            }
+
+            if (!hasSR) srPity++;
+            if (!hasSSR) ssrPity++;
+
+            updateItemDisplay();
+            document.getElementById('guarantee-info').innerText = `SR保底: ${srPity}/10, SSR保底: ${ssrPity}/20`;
+        };
+
+        const updateItemDisplay = () => {
+            document.getElementById('item1').innerText = items[0] || '';
+            document.getElementById('item2').innerText = items[1] || '';
+            document.getElementById('item3').innerText = items[2] || '';
+
+            // Reset item styles
+            document.getElementById('item1').classList.remove('drawn');
+            document.getElementById('item2').classList.remove('drawn');
+            document.getElementById('item3').classList.remove('drawn');
+        };
+
+        const updateCurrencyDisplay = () => {
+            document.getElementById('gold').innerText = gold;
+            document.getElementById('gems').innerText = gems;
+        };
+
+        const updateButtonStates = () => {
+            const drawButton = document.getElementById('draw-button');
+            const refreshButton = document.getElementById('refresh-button');
+
+            refreshButton.disabled = stage !== 'display';
+
+            drawButton.disabled = !(stage === 'goldBet' || (stage === 'gemBet' && currentLevel <= 3));
+
+            if (stage === 'goldBet') {
+                drawButton.innerText = `第 ${currentLevel} 层抽卡 (${100 * betMultiple} 金币)`;
+            } else if (stage === 'gemBet' && currentLevel === 2) {
+                drawButton.innerText = `第 ${currentLevel} 层抽卡 (100 宝石)`;
+            } else if (stage === 'gemBet' && currentLevel === 3) {
+                drawButton.innerText = `第 ${currentLevel} 层抽卡 (300 宝石)`;
+            } else {
+                drawButton.innerText = '';
+            }
+        };
+
+        const drawItem = () => {
+            let cost = 0;
+            if (stage === 'goldBet') {
+                cost = 100 * betMultiple;
+                if (gold < cost) {
+                    document.getElementById('result-message').innerText = '金币不足!';
+                    return;
+                }
+                gold -= cost;
+            } else if (stage === 'gemBet') {
+                cost = 100;
+                if (gems < cost) {
+                    document.getElementById('result-message').innerText = '宝石不足!';
+                    return;
+                }
+                gems -= cost;
+            }
+
+            updateCurrencyDisplay();
+
+            const randomIndex = Math.floor(Math.random() * items.length);
+            const result = items[randomIndex];
+            document.getElementById('result-message').innerText = `第 ${currentLevel} 层抽卡结果: ${result}`;
+
+            // Apply drawn effect
+            const itemElement = document.getElementById(`item${randomIndex + 1}`);
+            itemElement.classList.add('drawn');
+
+            items.splice(randomIndex, 1);
+
+            if (currentLevel < 3 && items.length > 0) {
+                currentLevel++;
+                stage = 'gemBet';
+            } else {
+                stage = 'finished';
+            }
+            updateButtonStates();
+        };
+
+        document.addEventListener('DOMContentLoaded', () => {
+            const refreshButton = document.getElementById('refresh-button');
+            const drawButton = document.getElementById('draw-button');
+            const decreaseLevelButton = document.getElementById('decrease-level');
+            const increaseLevelButton = document.getElementById('increase-level');
+            const resultMessage = document.getElementById('result-message');
+            const currentLevelSpan = document.getElementById('current-level');
+
+            const setBetMultiple = (multiple) => {
+                betMultiple = multiple;
+                currentLevelSpan.innerText = multiple;
+                updateButtonStates();
+            };
+
+            generateDisplayItems();
+            updateCurrencyDisplay();
+            updateButtonStates();
+
+            decreaseLevelButton.addEventListener('click', () => {
+                if (betMultiple > 1) {
+                    setBetMultiple(betMultiple - 1);
+                }
+            });
+
+            increaseLevelButton.addEventListener('click', () => {
+                if (betMultiple < 3) {
+                    setBetMultiple(betMultiple + 1);
+                }
+            });
+
+            refreshButton.addEventListener('click', () => {
+                if (gold >= 100) {
+                    gold -= 100;
+                    updateCurrencyDisplay();
+                    generateDisplayItems();
+                    resultMessage.innerText = '';
+                    stage = 'goldBet';
+                    currentLevel = 1;
+                    updateButtonStates();
+                    refreshButton.disabled = true; // Disable after click
+                } else {
+                    resultMessage.innerText = '金币不足!';
+                }
+            });
+
+            drawButton.addEventListener('click', () => {
+                drawItem();
+            });
+        });
+    </script>
+</body>
+</html>
